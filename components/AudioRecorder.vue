@@ -51,7 +51,7 @@ const copyToClipboard = async () => {
   <!-- Settings Button (Top Right) -->
   <button 
     @click="toggleSettings" 
-    class="fixed top-8 right-8 z-40 text-zinc-600 hover:text-zinc-300 transition-colors focus:outline-none p-2 rounded-full hover:bg-zinc-900" 
+    class="fixed top-4 right-4 sm:top-8 sm:right-8 z-40 text-zinc-600 hover:text-zinc-300 transition-colors focus:outline-none p-2 rounded-full hover:bg-zinc-900" 
     title="Custom Vocabulary"
   >
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
@@ -111,7 +111,7 @@ const copyToClipboard = async () => {
       </div>
     </div>
 
-    <div class="relative flex items-center justify-center w-80 h-32">
+    <div class="relative flex items-center justify-center w-full max-w-xs sm:max-w-sm md:w-80 h-32">
       
       <!-- Live Waveform Visualizer -->
       <div class="absolute inset-0 z-0 opacity-60">
@@ -136,7 +136,7 @@ const copyToClipboard = async () => {
     </div>
 
     <div class="w-full space-y-4">
-      <div class="p-6 overflow-hidden border border-zinc-800 bg-zinc-900/50 rounded-xl min-h-[200px] relative group">
+      <div class="p-6 overflow-hidden border border-zinc-800 bg-zinc-900/50 rounded-xl min-h-[150px] sm:min-h-[200px] relative group">
         <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-zinc-700 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         
         <button
