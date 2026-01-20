@@ -1,0 +1,27 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#09090b" stroke="#27272a" stroke-width="2"/>
+  
+  <!-- Sound waves (left side) -->
+  <path d="M 40 100 Q 45 85, 50 100 T 60 100" stroke="#52525b" stroke-width="2" fill="none" opacity="0.6"/>
+  <path d="M 35 100 Q 40 75, 45 100 T 55 100" stroke="#52525b" stroke-width="2" fill="none" opacity="0.4"/>
+  <path d="M 30 100 Q 35 65, 40 100 T 50 100" stroke="#52525b" stroke-width="2" fill="none" opacity="0.2"/>
+  
+  <!-- Sound waves (right side) -->
+  <path d="M 140 100 Q 145 85, 150 100 T 160 100" stroke="#52525b" stroke-width="2" fill="none" opacity="0.6"/>
+  <path d="M 145 100 Q 150 75, 155 100 T 165 100" stroke="#52525b" stroke-width="2" fill="none" opacity="0.4"/>
+  <path d="M 150 100 Q 155 65, 160 100 T 170 100" stroke="#52525b" stroke-width="2" fill="none" opacity="0.2"/>
+  
+  <!-- Microphone body -->
+  <rect x="85" y="70" width="30" height="40" rx="15" fill="#fafafa"/>
+  
+  <!-- Microphone stand -->
+  <path d="M 100 110 L 100 130" stroke="#fafafa" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 85 130 L 115 130" stroke="#fafafa" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Microphone arc -->
+  <path d="M 75 95 Q 75 120, 100 120 Q 125 120, 125 95" stroke="#fafafa" stroke-width="2" fill="none"/>
+  
+  <!-- Center dot (recording indicator) -->
+  <circle cx="100" cy="85" r="3" fill="#ef4444"/>
+</svg>

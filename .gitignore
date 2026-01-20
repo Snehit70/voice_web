@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# Nuxt
+.nuxt/
+.output/
+.vercel/
+bun.lock
+
+# Logs
+logs/
+*.log
+
+# Editor
+.vscode/
+.idea/
+.vercel
