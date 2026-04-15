@@ -14,7 +14,6 @@ dist/
 .nuxt/
 .output/
 .vercel/
-bun.lock
 
 # Logs
 logs/
