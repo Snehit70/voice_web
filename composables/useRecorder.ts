@@ -28,14 +28,25 @@ function getAudioExtension(mimeType: string): string {
   return 'webm'
 }
 
+export interface TranscriptionDiagnostics {
+  model: string
+  llmImproved: boolean
+  mergeStrategy: string
+  mergeReason: string
+  fallbackUsed: boolean
+  warnings: string[]
+}
+
 export function useRecorder() {
   const isRecording = ref(false)
   const isProcessing = ref(false)
+  const processingStage = ref<'uploading' | 'transcribing' | 'finalizing' | null>(null)
   const transcript = ref('')
   const error = ref<string | null>(null)
   const errorType = ref<'error' | 'warning' | null>(null)
   const audioData = ref<Uint8Array>(new Uint8Array(0))
   const customKeywords = ref<string[]>([])
+  const diagnostics = ref<TranscriptionDiagnostics | null>(null)
   const { addToast } = useToast()
 
   let mediaRecorder: MediaRecorder | null = null
@@ -62,6 +73,7 @@ export function useRecorder() {
       error.value = null
       errorType.value = null
       transcript.value = ''
+      diagnostics.value = null
       audioChunks = []
       recorderMimeType = ''
 
@@ -128,6 +140,7 @@ export function useRecorder() {
 
   const processAudio = async (blob: Blob, keywords: string[] = [], fileName?: string) => {
     isProcessing.value = true
+    processingStage.value = 'uploading'
     try {
       const formData = new FormData()
       const resolvedFileName = fileName || `recording.${getAudioExtension(blob.type)}`
@@ -135,6 +148,8 @@ export function useRecorder() {
       if (keywords.length > 0) {
         formData.append('keywords', JSON.stringify(keywords))
       }
+
+      processingStage.value = 'transcribing'
 
       const response = await fetch('/api/transcribe', {
         method: 'POST',
@@ -155,10 +170,22 @@ export function useRecorder() {
       }
 
       const data = await response.json()
+      processingStage.value = 'finalizing'
       if (typeof data.text === 'string') {
         transcript.value = data.text
       } else {
         transcript.value = JSON.stringify(data)
+      }
+
+      diagnostics.value = {
+        model: typeof data.model === 'string' ? data.model : 'unknown',
+        llmImproved: Boolean(data.llm_improved),
+        mergeStrategy: typeof data.merge_strategy === 'string' ? data.merge_strategy : 'unknown',
+        mergeReason: typeof data.merge_reason === 'string' ? data.merge_reason : 'unknown',
+        fallbackUsed: Boolean(data.fallback_used),
+        warnings: Array.isArray(data.warnings)
+          ? data.warnings.filter((warning: unknown): warning is string => typeof warning === 'string')
+          : [],
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Upload failed'
@@ -167,6 +194,7 @@ export function useRecorder() {
       console.error(err)
     } finally {
       isProcessing.value = false
+      processingStage.value = null
     }
   }
 
@@ -179,7 +207,9 @@ export function useRecorder() {
   return {
     isRecording,
     isProcessing,
+    processingStage,
     transcript,
+    diagnostics,
     error,
     errorType,
     audioData,

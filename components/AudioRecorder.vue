@@ -4,11 +4,24 @@ import { useRecorder } from '../composables/useRecorder'
 import LiveWaveform from './LiveWaveform.vue'
 import StreamingText from './StreamingText.vue'
 
-const { isRecording, isProcessing, transcript, error, errorType, audioData, customKeywords, startRecording, stopRecording } = useRecorder()
+const {
+  isRecording,
+  isProcessing,
+  processingStage,
+  transcript,
+  diagnostics,
+  error,
+  errorType,
+  audioData,
+  customKeywords,
+  startRecording,
+  stopRecording
+} = useRecorder()
 
 const copied = ref(false)
 const showSettings = ref(false)
 const keywordsInput = ref('')
+const showDiagnostics = ref(false)
 
 onMounted(() => {
   const saved = localStorage.getItem('voice_web_keywords')
@@ -45,6 +58,19 @@ const copyToClipboard = async () => {
   copied.value = true
   setTimeout(() => copied.value = false, 2000)
 }
+
+const processingLabel = computed(() => {
+  if (processingStage.value === 'uploading') return 'UPLOADING'
+  if (processingStage.value === 'transcribing') return 'TRANSCRIBING'
+  if (processingStage.value === 'finalizing') return 'FINALIZING'
+  return 'PROCESSING'
+})
+
+watch(transcript, (nextTranscript, previousTranscript) => {
+  if (nextTranscript !== previousTranscript) {
+    showDiagnostics.value = false
+  }
+})
 </script>
 
 <template>
@@ -75,7 +101,7 @@ const copyToClipboard = async () => {
       ></div>
       <span v-if="error && errorType === 'warning'" class="text-yellow-500">WARNING</span>
       <span v-else-if="error && errorType === 'error'" class="text-red-500">ERROR</span>
-      <span v-else-if="isProcessing" class="text-yellow-500">PROCESSING</span>
+      <span v-else-if="isProcessing" class="text-yellow-500">{{ processingLabel }}</span>
       <span v-else-if="isRecording" class="text-red-500">RECORDING</span>
       <span v-else class="text-zinc-500">READY</span>
     </div>
@@ -139,19 +165,34 @@ const copyToClipboard = async () => {
       <div class="p-6 overflow-hidden border border-zinc-800 bg-zinc-900/50 rounded-xl min-h-[150px] sm:min-h-[200px] relative group">
         <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-zinc-700 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         
-        <button
-          v-if="transcript"
-          @click="copyToClipboard"
-          class="absolute top-4 right-4 p-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 transition-colors"
-          :class="copied ? 'text-green-400' : 'text-zinc-400'"
-        >
-          <svg v-if="!copied" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
-        </button>
+        <div v-if="transcript" class="absolute top-4 right-4 flex gap-2">
+          <button
+            v-if="diagnostics"
+            @click="showDiagnostics = !showDiagnostics"
+            class="p-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 transition-colors text-zinc-400"
+            :class="showDiagnostics ? 'text-white border-zinc-500' : 'text-zinc-400'"
+            title="Toggle diagnostics"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.09.668v4.852a.75.75 0 0 1-1.18.61l-1.386-.924a.75.75 0 0 1-.335-.624V12a.75.75 0 0 1 .75-.75h1.02Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25h.008v.008H12V8.25Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </button>
+
+          <button
+            @click="copyToClipboard"
+            class="p-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 transition-colors"
+            :class="copied ? 'text-green-400' : 'text-zinc-400'"
+          >
+            <svg v-if="!copied" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+          </button>
+        </div>
 
         <div v-if="transcript" class="text-lg leading-relaxed text-zinc-100 font-sans pr-12 min-h-[60px]">
           <StreamingText :text="transcript" />
@@ -165,6 +206,48 @@ const copyToClipboard = async () => {
         <p v-else class="text-sm font-mono text-zinc-600 uppercase tracking-widest text-center mt-16">
           // Waiting for input...
         </p>
+      </div>
+
+      <div
+        v-if="showDiagnostics && diagnostics"
+        class="border border-zinc-800 bg-zinc-950/70 rounded-xl p-4 space-y-3 text-xs font-mono text-zinc-300"
+      >
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <p class="text-zinc-500 uppercase tracking-widest mb-1">Model</p>
+            <p>{{ diagnostics.model }}</p>
+          </div>
+          <div>
+            <p class="text-zinc-500 uppercase tracking-widest mb-1">Merge Strategy</p>
+            <p>{{ diagnostics.mergeStrategy }}</p>
+          </div>
+          <div>
+            <p class="text-zinc-500 uppercase tracking-widest mb-1">Merge Reason</p>
+            <p>{{ diagnostics.mergeReason }}</p>
+          </div>
+          <div>
+            <p class="text-zinc-500 uppercase tracking-widest mb-1">Fallback Used</p>
+            <p>{{ diagnostics.fallbackUsed ? 'YES' : 'NO' }}</p>
+          </div>
+        </div>
+
+        <div class="flex gap-2 flex-wrap">
+          <span
+            class="inline-flex items-center px-2 py-1 rounded border text-[10px] tracking-widest uppercase"
+            :class="diagnostics.llmImproved ? 'border-green-700 text-green-300 bg-green-950/40' : 'border-zinc-700 text-zinc-400 bg-zinc-900/40'"
+          >
+            {{ diagnostics.llmImproved ? 'LLM Merge' : 'Deterministic / Fallback' }}
+          </span>
+        </div>
+
+        <div v-if="diagnostics.warnings.length > 0" class="space-y-2">
+          <p class="text-zinc-500 uppercase tracking-widest">Warnings</p>
+          <ul class="space-y-1">
+            <li v-for="warning in diagnostics.warnings" :key="warning" class="text-yellow-300">
+              {{ warning }}
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 
