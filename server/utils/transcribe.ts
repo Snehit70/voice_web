@@ -19,6 +19,15 @@ interface TranscriptionResult {
   error?: string
 }
 
+export interface TranscriptionOutcome {
+  text: string
+  model: string
+  mergeStrategy: MergeResult['strategy'] | 'single_provider'
+  mergeReason: MergeResult['reason'] | 'provider_fallback'
+  fallbackUsed: boolean
+  warnings: string[]
+}
+
 export class Transcriber {
   private config: Config
   private llm: LLMService | null
@@ -72,7 +81,7 @@ export class Transcriber {
     }
   }
 
-  async transcribeWithFallback(audioPath: string, customKeywords: string[] = []): Promise<{ text: string; model: string }> {
+  async transcribeWithFallback(audioPath: string, customKeywords: string[] = []): Promise<TranscriptionOutcome> {
     try {
       await stat(audioPath)
     } catch {
@@ -95,10 +104,12 @@ export class Transcriber {
 
     const logCtx: Record<string, any> = {}
     const successful: TranscriptionResult[] = []
+    const warnings: string[] = []
 
     for (const res of results) {
       if (res.error) {
         logCtx[`${res.provider}_error`] = res.error
+        warnings.push(`${res.provider} failed: ${res.error}`)
       } else {
         logCtx[`${res.provider}_text_len`] = res.text.length
         logCtx[`${res.provider}_text`] = res.text
@@ -131,6 +142,9 @@ export class Transcriber {
     let finalText = ''
     let modelUsed = 'merged'
     let mergeResult: MergeResult | null = null
+    let mergeStrategy: MergeResult['strategy'] | 'single_provider' = 'single_provider'
+    let mergeReason: MergeResult['reason'] | 'provider_fallback' = 'provider_fallback'
+    let fallbackUsed = false
 
     if (groqRes && deepgramRes && this.llm && this.llm.isAvailable) {
       consola.info('merging_transcripts_with_llm')
@@ -142,18 +156,28 @@ export class Transcriber {
           'Deepgram/Nova-3'
         )
         finalText = mergeResult.text
+        mergeStrategy = mergeResult.strategy
+        mergeReason = mergeResult.reason
+        fallbackUsed = mergeResult.strategy === 'llm_fallback'
         logCtx['winner'] = mergeResult.strategy
         logCtx['merge_reason'] = mergeResult.reason
       } catch (error: any) {
         consola.error('merge_failed', { error: error.message })
         const winner = successful.reduce((a, b) => (a.text.length > b.text.length ? a : b))
         finalText = winner.text
+        mergeStrategy = 'single_provider'
+        mergeReason = 'provider_fallback'
+        fallbackUsed = true
+        warnings.push(`merge failed: ${error.message}`)
         logCtx['winner'] = `${winner.provider}_fallback`
       }
     } else {
       const winner = successful.reduce((a, b) => (a.text.length > b.text.length ? a : b))
       finalText = winner.text
       logCtx['winner'] = winner.provider
+      fallbackUsed = successful.length === 1
+      mergeStrategy = 'single_provider'
+      mergeReason = 'provider_fallback'
 
       if (winner.provider === 'groq') {
         modelUsed = `groq:${this.config.groq.model}`
@@ -163,8 +187,16 @@ export class Transcriber {
     }
 
     logCtx['final_len'] = finalText.length
+    logCtx['fallback_used'] = fallbackUsed
     consola.info('transcription_comparison', logCtx)
 
-    return { text: finalText, model: modelUsed }
+    return {
+      text: finalText,
+      model: modelUsed,
+      mergeStrategy,
+      mergeReason,
+      fallbackUsed,
+      warnings,
+    }
   }
 }

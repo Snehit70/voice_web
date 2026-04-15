@@ -148,7 +148,7 @@ sequenceDiagram
 
     Transcriber->>PP: process()
     PP-->>Transcriber: cleaned text
-    Transcriber-->>API: { text, model, duration_ms }
+    Transcriber-->>API: { text, model, merge_strategy, duration_ms }
     API-->>Browser: JSON response
 ```
 
@@ -222,7 +222,11 @@ Transcribe an audio file using dual STT engines.
   "text": "Transcribed text content",
   "model": "merged | groq:whisper-large-v3 | deepgram:nova-3",
   "duration_ms": 1234,
-  "llm_improved": true
+  "llm_improved": true,
+  "merge_strategy": "llm | llm_fallback | exact_match | normalized_match | formatting_only | minor_diff | single_word_match | single_provider",
+  "merge_reason": "llm_succeeded | llm_error_fallback | provider_fallback | ...",
+  "fallback_used": false,
+  "warnings": []
 }
 ```
 

@@ -93,10 +93,13 @@ export default defineEventHandler(async (event) => {
     const elapsedMs = Math.round(performance.now() - start)
 
     const processedText = process(result.text)
-    const llmImproved = result.model.includes('merged')
+    const llmImproved = result.mergeStrategy === 'llm'
 
     consola.info('transcription_complete', {
       model: result.model,
+      mergeStrategy: result.mergeStrategy,
+      mergeReason: result.mergeReason,
+      fallbackUsed: result.fallbackUsed,
       durationMs: elapsedMs,
       textLength: processedText.length,
       originalText: result.text,
@@ -109,6 +112,10 @@ export default defineEventHandler(async (event) => {
       model: result.model,
       duration_ms: elapsedMs,
       llm_improved: llmImproved,
+      merge_strategy: result.mergeStrategy,
+      merge_reason: result.mergeReason,
+      fallback_used: result.fallbackUsed,
+      warnings: result.warnings,
     }
   } catch (error: any) {
     if (error instanceof NonEnglishError) {
