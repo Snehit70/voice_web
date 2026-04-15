@@ -4,6 +4,7 @@ import type { Config } from './config'
 import { GroqTranscriber, NonEnglishError } from './groq'
 import { DeepgramTranscriber } from './deepgram'
 import { LLMService } from './llm'
+import type { MergeResult } from './merge'
 
 export class TranscriptionError extends Error {
   constructor(message: string) {
@@ -129,17 +130,20 @@ export class Transcriber {
 
     let finalText = ''
     let modelUsed = 'merged'
+    let mergeResult: MergeResult | null = null
 
     if (groqRes && deepgramRes && this.llm && this.llm.isAvailable) {
       consola.info('merging_transcripts_with_llm')
       try {
-        finalText = await this.llm.mergeTranscripts(
+        mergeResult = await this.llm.mergeTranscripts(
           groqRes.text,
           deepgramRes.text,
           'Groq/Whisper',
           'Deepgram/Nova-3'
         )
-        logCtx['winner'] = 'llm_merge'
+        finalText = mergeResult.text
+        logCtx['winner'] = mergeResult.strategy
+        logCtx['merge_reason'] = mergeResult.reason
       } catch (error: any) {
         consola.error('merge_failed', { error: error.message })
         const winner = successful.reduce((a, b) => (a.text.length > b.text.length ? a : b))
