@@ -4,7 +4,11 @@ import type { Config } from './config'
 import { GroqTranscriber, NonEnglishError } from './groq'
 import { DeepgramTranscriber } from './deepgram'
 import { LLMService } from './llm'
-import type { MergeResult } from './merge'
+import {
+  buildGatedMergeResult,
+  decideMerge,
+  type MergeResult,
+} from './merge'
 
 export class TranscriptionError extends Error {
   constructor(message: string) {
@@ -19,6 +23,32 @@ interface TranscriptionResult {
   error?: string
 }
 
+export interface GroqTranscriberLike {
+  isAvailable: boolean
+  transcribe(audioPath: string, customKeywords?: string[]): Promise<string>
+}
+
+export interface DeepgramTranscriberLike {
+  isAvailable: boolean
+  transcribe(audioPath: string, customKeywords?: string[]): Promise<string>
+}
+
+export interface LLMServiceLike {
+  isAvailable: boolean
+  mergeTranscripts(
+    textA: string,
+    textB: string,
+    sourceAName: string,
+    sourceBName: string
+  ): Promise<MergeResult>
+}
+
+interface TranscriberDependencies {
+  groq?: GroqTranscriberLike
+  deepgram?: DeepgramTranscriberLike
+  llm?: LLMServiceLike | null
+}
+
 export interface TranscriptionOutcome {
   text: string
   model: string
@@ -30,18 +60,18 @@ export interface TranscriptionOutcome {
 
 export class Transcriber {
   private config: Config
-  private llm: LLMService | null
-  private groq: GroqTranscriber
-  private deepgram: DeepgramTranscriber
+  private llm: LLMServiceLike | null
+  private groq: GroqTranscriberLike
+  private deepgram: DeepgramTranscriberLike
   public useGroq: boolean
   public useDeepgram: boolean
 
-  constructor(config: Config, llmService: LLMService | null = null) {
+  constructor(config: Config, llmService: LLMServiceLike | null = null, dependencies: TranscriberDependencies = {}) {
     this.config = config
-    this.llm = llmService
+    this.llm = dependencies.llm ?? llmService
 
-    this.groq = new GroqTranscriber(config.groq)
-    this.deepgram = new DeepgramTranscriber(config.deepgram)
+    this.groq = dependencies.groq ?? new GroqTranscriber(config.groq)
+    this.deepgram = dependencies.deepgram ?? new DeepgramTranscriber(config.deepgram)
 
     this.useGroq = this.groq.isAvailable
     this.useDeepgram = this.deepgram.isAvailable
@@ -172,17 +202,46 @@ export class Transcriber {
         logCtx['winner'] = `${winner.provider}_fallback`
       }
     } else {
-      const winner = successful.reduce((a, b) => (a.text.length > b.text.length ? a : b))
-      finalText = winner.text
-      logCtx['winner'] = winner.provider
-      fallbackUsed = successful.length === 1
-      mergeStrategy = 'single_provider'
-      mergeReason = 'provider_fallback'
+      if (groqRes && deepgramRes) {
+        const gateDecision = decideMerge(groqRes.text, deepgramRes.text)
 
-      if (winner.provider === 'groq') {
-        modelUsed = `groq:${this.config.groq.model}`
-      } else if (winner.provider === 'deepgram') {
-        modelUsed = `deepgram:${this.config.deepgram.model}`
+        if (gateDecision.text !== undefined) {
+          mergeResult = buildGatedMergeResult(groqRes.text, deepgramRes.text, gateDecision)
+          finalText = mergeResult.text
+          mergeStrategy = mergeResult.strategy
+          mergeReason = mergeResult.reason
+          fallbackUsed = false
+          warnings.push('llm unavailable: used deterministic merge strategy')
+          logCtx['winner'] = mergeResult.strategy
+          logCtx['merge_reason'] = mergeResult.reason
+        } else {
+          const winner = successful.reduce((a, b) => (a.text.length > b.text.length ? a : b))
+          finalText = winner.text
+          fallbackUsed = true
+          mergeStrategy = 'single_provider'
+          mergeReason = 'provider_fallback'
+          warnings.push('llm unavailable: fell back to provider transcript')
+          logCtx['winner'] = `${winner.provider}_fallback`
+
+          if (winner.provider === 'groq') {
+            modelUsed = `groq:${this.config.groq.model}`
+          } else if (winner.provider === 'deepgram') {
+            modelUsed = `deepgram:${this.config.deepgram.model}`
+          }
+        }
+      } else {
+        const winner = successful.reduce((a, b) => (a.text.length > b.text.length ? a : b))
+        finalText = winner.text
+        logCtx['winner'] = winner.provider
+        fallbackUsed = successful.length === 1
+        mergeStrategy = 'single_provider'
+        mergeReason = 'provider_fallback'
+
+        if (winner.provider === 'groq') {
+          modelUsed = `groq:${this.config.groq.model}`
+        } else if (winner.provider === 'deepgram') {
+          modelUsed = `deepgram:${this.config.deepgram.model}`
+        }
       }
     }
 
