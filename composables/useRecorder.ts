@@ -1,6 +1,33 @@
 import { ref, onUnmounted } from 'vue'
 import { useToast } from './useToast'
 
+const PREFERRED_AUDIO_MIME_TYPES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/ogg;codecs=opus',
+  'audio/ogg',
+]
+
+function getPreferredRecorderMimeType(): string | undefined {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+    return undefined
+  }
+
+  return PREFERRED_AUDIO_MIME_TYPES.find((mimeType) => MediaRecorder.isTypeSupported(mimeType))
+}
+
+function getAudioExtension(mimeType: string): string {
+  const normalized = mimeType.toLowerCase()
+
+  if (normalized.includes('webm')) return 'webm'
+  if (normalized.includes('ogg')) return 'ogg'
+  if (normalized.includes('mpeg') || normalized.includes('mp3')) return 'mp3'
+  if (normalized.includes('wav')) return 'wav'
+  if (normalized.includes('mp4') || normalized.includes('m4a')) return 'm4a'
+
+  return 'webm'
+}
+
 export function useRecorder() {
   const isRecording = ref(false)
   const isProcessing = ref(false)
@@ -18,6 +45,7 @@ export function useRecorder() {
   let animationFrameId: number | null = null
   let stream: MediaStream | null = null
   let audioChunks: Blob[] = []
+  let recorderMimeType = ''
 
   const updateVisualizer = () => {
     if (!analyser || !isRecording.value) return
@@ -35,6 +63,7 @@ export function useRecorder() {
       errorType.value = null
       transcript.value = ''
       audioChunks = []
+      recorderMimeType = ''
 
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       
@@ -44,7 +73,11 @@ export function useRecorder() {
       source = audioContext.createMediaStreamSource(stream)
       source.connect(analyser)
 
-      mediaRecorder = new MediaRecorder(stream)
+      const preferredMimeType = getPreferredRecorderMimeType()
+      mediaRecorder = preferredMimeType
+        ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+        : new MediaRecorder(stream)
+      recorderMimeType = mediaRecorder.mimeType || preferredMimeType || ''
       
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -53,8 +86,10 @@ export function useRecorder() {
       }
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
-        await processAudio(audioBlob, customKeywords.value)
+        const mimeType = recorderMimeType || audioChunks[0]?.type || 'audio/webm'
+        const audioBlob = new Blob(audioChunks, { type: mimeType })
+        const fileName = `recording.${getAudioExtension(mimeType)}`
+        await processAudio(audioBlob, customKeywords.value, fileName)
       }
 
       mediaRecorder.start()
@@ -91,11 +126,12 @@ export function useRecorder() {
     audioData.value = new Uint8Array(0)
   }
 
-  const processAudio = async (blob: Blob, keywords: string[] = []) => {
+  const processAudio = async (blob: Blob, keywords: string[] = [], fileName?: string) => {
     isProcessing.value = true
     try {
       const formData = new FormData()
-      formData.append('file', blob, 'recording.wav')
+      const resolvedFileName = fileName || `recording.${getAudioExtension(blob.type)}`
+      formData.append('file', blob, resolvedFileName)
       if (keywords.length > 0) {
         formData.append('keywords', JSON.stringify(keywords))
       }

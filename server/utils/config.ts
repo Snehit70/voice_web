@@ -2,14 +2,14 @@ export interface GroqConfig {
   enabled: boolean
   apiKey: string
   model: string
-  timeout: number
+  timeoutMs: number
 }
 
 export interface DeepgramConfig {
   enabled: boolean
   apiKey: string
   model: string
-  timeout: number
+  timeoutMs: number
 }
 
 export interface LLMConfig {
@@ -17,7 +17,7 @@ export interface LLMConfig {
   apiKey: string
   baseUrl: string
   model: string
-  timeout: number
+  timeoutMs: number
 }
 
 export interface PunctuationConfig {
@@ -46,20 +46,20 @@ export function getConfig(): Config {
       enabled: true,
       apiKey: runtimeConfig.groqApiKey || '',
       model: 'whisper-large-v3',
-      timeout: 30000
+      timeoutMs: 30000
     },
     deepgram: {
       enabled: true,
       apiKey: runtimeConfig.deepgramApiKey || '',
       model: 'nova-3',
-      timeout: 30000
+      timeoutMs: 30000
     },
     llm: {
       enabled: true,
       apiKey: runtimeConfig.groqApiKey || '',
       baseUrl: 'https://api.groq.com/openai/v1',
       model: 'llama-3.3-70b-versatile',
-      timeout: 30000
+      timeoutMs: 30000
     },
     punctuation: {
       enabled: true,

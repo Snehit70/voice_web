@@ -7,6 +7,14 @@ import { getTranscriptionPrompt } from './vocabulary'
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
 
+function getMimeTypeForPath(audioPath: string): string {
+  if (audioPath.endsWith('.mp3')) return 'audio/mpeg'
+  if (audioPath.endsWith('.ogg')) return 'audio/ogg'
+  if (audioPath.endsWith('.webm')) return 'audio/webm'
+  if (audioPath.endsWith('.m4a') || audioPath.endsWith('.mp4')) return 'audio/mp4'
+  return 'audio/wav'
+}
+
 export class GroqTranscriptionError extends Error {
   constructor(message: string) {
     super(message)
@@ -41,7 +49,7 @@ export class GroqTranscriber {
     return this.config.enabled && !!this.config.apiKey
   }
 
-  async transcribe(audioPath: string): Promise<string> {
+  async transcribe(audioPath: string, customKeywords: string[] = []): Promise<string> {
     if (!this.isAvailable) {
       throw new GroqTranscriptionError(
         'Groq API not available (disabled or no API key)'
@@ -64,15 +72,16 @@ export class GroqTranscriber {
         const fileBuffer = await readFile(audioPath)
         const fileStats = await stat(audioPath)
         const fileName = audioPath.split('/').pop() || 'audio.wav'
+        const mimeType = getMimeTypeForPath(audioPath)
         
         const connectTime = performance.now() - connectStart
 
         const formData = new FormData()
-        const blob = new Blob([fileBuffer], { type: 'audio/wav' })
+        const blob = new Blob([fileBuffer], { type: mimeType })
         formData.append('file', blob, fileName)
         formData.append('model', this.config.model)
         formData.append('response_format', 'verbose_json')
-        formData.append('prompt', getTranscriptionPrompt())
+        formData.append('prompt', getTranscriptionPrompt(customKeywords))
 
         const uploadStart = performance.now()
         
@@ -85,7 +94,7 @@ export class GroqTranscriber {
           headers: {
             Authorization: `Bearer ${this.config.apiKey}`,
           },
-          timeout: this.config.timeout * 1000,
+          timeout: this.config.timeoutMs,
         })
 
         const uploadProcessTime = performance.now() - uploadStart
@@ -126,10 +135,10 @@ export class GroqTranscriber {
 
         if (error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
           consola.error('groq_transcription_timeout', {
-            timeout: this.config.timeout,
+            timeoutMs: this.config.timeoutMs,
           })
           throw new GroqTranscriptionError(
-            `Groq API timeout after ${this.config.timeout}s`
+            `Groq API timeout after ${Math.round(this.config.timeoutMs / 1000)}s`
           )
         }
 

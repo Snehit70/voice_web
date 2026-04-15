@@ -5,8 +5,6 @@ import { GroqTranscriber, NonEnglishError } from './groq'
 import { DeepgramTranscriber } from './deepgram'
 import { LLMService } from './llm'
 
-export { NonEnglishError }
-
 export class TranscriptionError extends Error {
   constructor(message: string) {
     super(message)
@@ -55,9 +53,9 @@ export class Transcriber {
     return models.join(' + ')
   }
 
-  private async runGroq(audioPath: string): Promise<TranscriptionResult> {
+  private async runGroq(audioPath: string, customKeywords: string[]): Promise<TranscriptionResult> {
     try {
-      const text = await this.groq.transcribe(audioPath)
+      const text = await this.groq.transcribe(audioPath, customKeywords)
       return { provider: 'groq', text }
     } catch (error: any) {
       return { provider: 'groq', text: '', error: error.message }
@@ -82,7 +80,7 @@ export class Transcriber {
 
     const tasks: Promise<TranscriptionResult>[] = []
     if (this.useGroq) {
-      tasks.push(this.runGroq(audioPath))
+      tasks.push(this.runGroq(audioPath, customKeywords))
     }
     if (this.useDeepgram) {
       tasks.push(this.runDeepgram(audioPath, customKeywords))

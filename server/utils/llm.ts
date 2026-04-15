@@ -52,7 +52,7 @@ export class LLMService {
           messages,
           temperature,
         },
-        timeout: this.config.timeout * 1000,
+        timeout: this.config.timeoutMs,
       })
 
       const content = result.choices[0]?.message?.content

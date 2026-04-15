@@ -3,12 +3,24 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import consola from 'consola'
 import { getConfig } from '~/server/utils/config'
-import { Transcriber, TranscriptionError, NonEnglishError } from '~/server/utils/transcribe'
+import { Transcriber, TranscriptionError } from '~/server/utils/transcribe'
+import { NonEnglishError } from '~/server/utils/groq'
 import { LLMService } from '~/server/utils/llm'
 import { process } from '~/server/utils/postprocess'
 
 let transcriber: Transcriber | null = null
 let llm: LLMService | null = null
+
+function getAudioSuffix(contentType: string, filename?: string): string {
+  const normalizedType = contentType.toLowerCase()
+  const normalizedFileName = filename?.toLowerCase() || ''
+
+  if (normalizedType.includes('wav') || normalizedFileName.endsWith('.wav')) return '.wav'
+  if (normalizedType.includes('mpeg') || normalizedType.includes('mp3') || normalizedFileName.endsWith('.mp3')) return '.mp3'
+  if (normalizedType.includes('ogg') || normalizedFileName.endsWith('.ogg')) return '.ogg'
+  if (normalizedType.includes('mp4') || normalizedType.includes('m4a') || normalizedFileName.endsWith('.m4a') || normalizedFileName.endsWith('.mp4')) return '.m4a'
+  return '.webm'
+}
 
 function initTranscriber() {
   if (!transcriber) {
@@ -62,11 +74,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const contentType = fileData.type || ''
-  let suffix = '.webm'
-  
-  if (contentType.includes('wav')) suffix = '.wav'
-  else if (contentType.includes('mp3')) suffix = '.mp3'
-  else if (contentType.includes('ogg')) suffix = '.ogg'
+  const suffix = getAudioSuffix(contentType, fileData.filename)
 
   const tempPath = join(tmpdir(), `voice_web_${Date.now()}${suffix}`)
 

@@ -254,17 +254,18 @@ Configuration is managed in `server/utils/config.ts`:
   groq: {
     enabled: true,
     model: 'whisper-large-v3',
-    timeout: 30000
+    timeoutMs: 30000
   },
   deepgram: {
     enabled: true,
     model: 'nova-3',
-    timeout: 30000
+    timeoutMs: 30000
   },
   llm: {
     enabled: true,
     model: 'llama-3.3-70b-versatile',
-    baseUrl: 'https://api.groq.com/openai/v1'
+    baseUrl: 'https://api.groq.com/openai/v1',
+    timeoutMs: 30000
   }
 }
 ```
