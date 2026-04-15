@@ -24,6 +24,7 @@ export default defineEventHandler(() => {
       deepgram_available: false,
       llm_available: false,
       active_model: 'none',
+      merge_model: 'disabled',
     }
   }
 
@@ -33,5 +34,6 @@ export default defineEventHandler(() => {
     deepgram_available: t.useDeepgram,
     llm_available: llm?.isAvailable || false,
     active_model: t.activeModelName,
+    merge_model: llm?.isAvailable ? getConfig().llm.model : 'disabled',
   }
 })

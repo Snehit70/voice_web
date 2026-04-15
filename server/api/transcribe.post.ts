@@ -1,14 +1,27 @@
+import { randomUUID } from 'crypto'
 import { writeFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import consola from 'consola'
 import { getConfig } from '~/server/utils/config'
-import { Transcriber, TranscriptionError, NonEnglishError } from '~/server/utils/transcribe'
+import { Transcriber, TranscriptionError } from '~/server/utils/transcribe'
+import { NonEnglishError } from '~/server/utils/groq'
 import { LLMService } from '~/server/utils/llm'
 import { process } from '~/server/utils/postprocess'
 
 let transcriber: Transcriber | null = null
 let llm: LLMService | null = null
+
+function getAudioSuffix(contentType: string, filename?: string): string {
+  const normalizedType = contentType.toLowerCase()
+  const normalizedFileName = filename?.toLowerCase() || ''
+
+  if (normalizedType.includes('wav') || normalizedFileName.endsWith('.wav')) return '.wav'
+  if (normalizedType.includes('mpeg') || normalizedType.includes('mp3') || normalizedFileName.endsWith('.mp3')) return '.mp3'
+  if (normalizedType.includes('ogg') || normalizedFileName.endsWith('.ogg')) return '.ogg'
+  if (normalizedType.includes('mp4') || normalizedType.includes('m4a') || normalizedFileName.endsWith('.m4a') || normalizedFileName.endsWith('.mp4')) return '.m4a'
+  return '.webm'
+}
 
 function initTranscriber() {
   if (!transcriber) {
@@ -17,6 +30,13 @@ function initTranscriber() {
     transcriber = new Transcriber(config, llm)
   }
   return transcriber
+}
+
+function buildSafePreview(text: string, previewLength: number = 32): string {
+  if (!text) return ''
+
+  const preview = text.slice(0, previewLength).replace(/\s+/g, ' ').trim()
+  return text.length > previewLength ? `${preview}… [redacted]` : `${preview} [redacted]`
 }
 
 export default defineEventHandler(async (event) => {
@@ -52,23 +72,22 @@ export default defineEventHandler(async (event) => {
   if (keywordsData && keywordsData.data) {
     try {
       const keywordsString = keywordsData.data.toString()
-      keywords = JSON.parse(keywordsString)
-      if (!Array.isArray(keywords)) {
-        keywords = []
-      }
+      const parsed = JSON.parse(keywordsString)
+      keywords = Array.isArray(parsed)
+        ? parsed
+            .filter((value: unknown): value is string => typeof value === 'string')
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0)
+        : []
     } catch {
       keywords = []
     }
   }
 
   const contentType = fileData.type || ''
-  let suffix = '.webm'
-  
-  if (contentType.includes('wav')) suffix = '.wav'
-  else if (contentType.includes('mp3')) suffix = '.mp3'
-  else if (contentType.includes('ogg')) suffix = '.ogg'
+  const suffix = getAudioSuffix(contentType, fileData.filename)
 
-  const tempPath = join(tmpdir(), `voice_web_${Date.now()}${suffix}`)
+  const tempPath = join(tmpdir(), `voice_web_${randomUUID()}${suffix}`)
 
   try {
     await writeFile(tempPath, fileData.data)
@@ -85,14 +104,17 @@ export default defineEventHandler(async (event) => {
     const elapsedMs = Math.round(performance.now() - start)
 
     const processedText = process(result.text)
-    const llmImproved = result.model.includes('merged')
+    const llmImproved = result.mergeStrategy === 'llm'
 
     consola.info('transcription_complete', {
       model: result.model,
+      mergeStrategy: result.mergeStrategy,
+      mergeReason: result.mergeReason,
+      fallbackUsed: result.fallbackUsed,
       durationMs: elapsedMs,
       textLength: processedText.length,
-      originalText: result.text,
-      finalText: processedText,
+      originalPreview: buildSafePreview(result.text),
+      finalPreview: buildSafePreview(processedText),
       llmImproved,
     })
 
@@ -101,6 +123,10 @@ export default defineEventHandler(async (event) => {
       model: result.model,
       duration_ms: elapsedMs,
       llm_improved: llmImproved,
+      merge_strategy: result.mergeStrategy,
+      merge_reason: result.mergeReason,
+      fallback_used: result.fallbackUsed,
+      warnings: result.warnings,
     }
   } catch (error: any) {
     if (error instanceof NonEnglishError) {

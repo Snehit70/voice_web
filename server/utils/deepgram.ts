@@ -2,6 +2,7 @@ import { readFile } from 'fs/promises'
 import { ofetch } from 'ofetch'
 import consola from 'consola'
 import type { DeepgramConfig } from './config'
+import { sanitizeDeepgramKeyterms } from './vocabulary'
 
 export class DeepgramTranscriptionError extends Error {
   constructor(message: string) {
@@ -61,6 +62,8 @@ export class DeepgramTranscriber {
       'GitHub',
     ]
 
+    const sanitizedKeywords = sanitizeDeepgramKeyterms(customKeywords)
+
     // Merge and Truncate logic to respect 500 token limit
     // Estimation: 1 token ~= 4 characters. We leave buffer.
     const MAX_TOKENS = 450 // Buffer of 50
@@ -77,7 +80,7 @@ export class DeepgramTranscriber {
     }
 
     // 2. Add User Keywords (if space remains)
-    for (const term of customKeywords) {
+    for (const term of sanitizedKeywords) {
       const tokens = Math.ceil(term.length / 4) + 1
       if (currentTokens + tokens < MAX_TOKENS) {
         finalKeyterms.push(term)
@@ -102,6 +105,8 @@ export class DeepgramTranscriber {
         mimeType = 'audio/webm'
       } else if (audioPath.endsWith('.ogg')) {
         mimeType = 'audio/ogg'
+      } else if (audioPath.endsWith('.m4a') || audioPath.endsWith('.mp4')) {
+        mimeType = 'audio/mp4'
       }
 
       const data = await ofetch<{
@@ -119,7 +124,7 @@ export class DeepgramTranscriber {
           'Content-Type': mimeType,
         },
         body: content,
-        timeout: this.config.timeout * 1000,
+        timeout: this.config.timeoutMs,
       })
 
       try {

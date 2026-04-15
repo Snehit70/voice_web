@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   audioData?: Uint8Array
+  volume?: number
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -42,10 +43,6 @@ const draw = () => {
     let barHeight = 4
 
     if (hasData) {
-      // Map bar index to frequency bin
-      // We focus on the lower/mid frequencies (0-50% of data) for speech
-      const dataIndex = Math.floor((i / barCount) * (data.length * 0.5))
-      
       // Symmetrize: If we are on the left side, map backwards?
       // Actually, standard is low freq on left, high on right.
       // But for "Standing Wave", we want symmetry.
@@ -59,10 +56,13 @@ const draw = () => {
       const rawHeight = (value / 255) * height * 0.8 * falloff
       barHeight = Math.max(4, rawHeight)
     } else {
-      // Idle Animation (Breathing)
       const time = Date.now() / 1000
-      const breathe = (Math.sin(time * 2) + 1) * 0.5
-      barHeight = 4 + breathe * 2
+      const pulse = (Math.sin(time * 10 + i * 0.4) + 1) * 0.5
+      let simulatedVolume = 0
+      if (typeof props.volume === 'number' && Number.isFinite(props.volume)) {
+        simulatedVolume = Math.max(0, Math.min(1, props.volume))
+      }
+      barHeight = 4 + simulatedVolume * 24 * pulse
     }
 
     const y = centerY - barHeight / 2

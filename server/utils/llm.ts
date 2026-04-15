@@ -1,6 +1,12 @@
 import { ofetch } from 'ofetch'
 import consola from 'consola'
 import type { LLMConfig } from './config'
+import {
+  buildGatedMergeResult,
+  buildSingleSourceMergeResult,
+  decideMerge,
+  type MergeResult,
+} from './merge'
 
 const POLISH_PROMPT = `You are a final-pass proofreader. Make ONLY these fixes:
 - Add missing commas and periods
@@ -52,7 +58,7 @@ export class LLMService {
           messages,
           temperature,
         },
-        timeout: this.config.timeout * 1000,
+        timeout: this.config.timeoutMs,
       })
 
       const content = result.choices[0]?.message?.content
@@ -147,12 +153,26 @@ export class LLMService {
     textB: string,
     sourceAName: string,
     sourceBName: string
-  ): Promise<string> {
-    if (!textA) return textB
-    if (!textB) return textA
+  ): Promise<MergeResult> {
+    if (!textA && !textB) {
+      return buildSingleSourceMergeResult('', 'empty', 'both_empty')
+    }
+    if (!textA) {
+      return buildSingleSourceMergeResult(textB, 'single_source', 'deepgram_only')
+    }
+    if (!textB) {
+      return buildSingleSourceMergeResult(textA, 'single_source', 'groq_only')
+    }
 
-    if (textA === textB) {
-      return textA
+    const gateDecision = decideMerge(textA, textB)
+    if (gateDecision.text !== undefined) {
+      consola.debug('merge_gate_skipped_llm', {
+        strategy: gateDecision.strategy,
+        reason: gateDecision.reason,
+        groqLength: textA.length,
+        deepgramLength: textB.length,
+      })
+      return buildGatedMergeResult(textA, textB, gateDecision)
     }
 
     const systemPrompt =
@@ -178,6 +198,30 @@ export class LLMService {
     ]
 
     const result = await this.callLLM(messages, 0.0)
-    return result || textA
+    const finalText = result || textA || textB
+
+    if (!result) {
+      return {
+        text: finalText,
+        strategy: 'llm_fallback',
+        reason: 'llm_error_fallback',
+        accuracy: {
+          sourcesMatch: textA.trim() === textB.trim(),
+          editDistance: 0,
+          confidence: 0.5,
+        },
+      }
+    }
+
+    return {
+      text: finalText,
+      strategy: 'llm',
+      reason: 'llm_succeeded',
+      accuracy: {
+        sourcesMatch: textA.trim() === textB.trim(),
+        editDistance: 0,
+        confidence: 0.75,
+      },
+    }
   }
 }

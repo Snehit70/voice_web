@@ -129,10 +129,10 @@ sequenceDiagram
     participant PP as Post-processor
 
     Browser->>API: POST audio file + keywords
-    API->>Transcriber: transcribeWithFallback()
+    API->>Transcriber: transcribeWithFallback(keywords)
     
     par Parallel STT
-        Transcriber->>Groq: transcribe()
+        Transcriber->>Groq: transcribe(keywords)
         Transcriber->>Deepgram: transcribe(keywords)
     end
 
@@ -140,15 +140,19 @@ sequenceDiagram
     Deepgram-->>Transcriber: text (formatting quality)
 
     alt Both engines succeed
-        Transcriber->>LLM: mergeTranscripts()
-        LLM-->>Transcriber: merged text
+        alt Resolve locally (exact / formatting-only / minor diff)
+            Transcriber->>Transcriber: deterministic merge gate
+        else Needs semantic conflict resolution
+            Transcriber->>LLM: mergeTranscripts()
+            LLM-->>Transcriber: merged text
+        end
     else One engine fails
         Transcriber->>Transcriber: use longest result
     end
 
     Transcriber->>PP: process()
     PP-->>Transcriber: cleaned text
-    Transcriber-->>API: { text, model, duration_ms }
+    Transcriber-->>API: { text, model, merge_strategy, duration_ms }
     API-->>Browser: JSON response
 ```
 
@@ -222,7 +226,11 @@ Transcribe an audio file using dual STT engines.
   "text": "Transcribed text content",
   "model": "merged | groq:whisper-large-v3 | deepgram:nova-3",
   "duration_ms": 1234,
-  "llm_improved": true
+  "llm_improved": true,
+  "merge_strategy": "llm | llm_fallback | exact_match | normalized_match | formatting_only | minor_diff | single_word_match | single_provider",
+  "merge_reason": "llm_succeeded | llm_error_fallback | provider_fallback | ...",
+  "fallback_used": false,
+  "warnings": []
 }
 ```
 
@@ -254,17 +262,18 @@ Configuration is managed in `server/utils/config.ts`:
   groq: {
     enabled: true,
     model: 'whisper-large-v3',
-    timeout: 30000
+    timeoutMs: 30000
   },
   deepgram: {
     enabled: true,
     model: 'nova-3',
-    timeout: 30000
+    timeoutMs: 30000
   },
   llm: {
     enabled: true,
     model: 'llama-3.3-70b-versatile',
-    baseUrl: 'https://api.groq.com/openai/v1'
+    baseUrl: 'https://api.groq.com/openai/v1',
+    timeoutMs: 30000
   }
 }
 ```
