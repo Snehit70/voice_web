@@ -148,18 +148,18 @@ export function hasStructuredFormattingIntent(...texts: string[]): boolean {
 }
 
 export function decideMerge(groqText: string, deepgramText: string): GateDecision {
-  if (hasStructuredFormattingIntent(groqText, deepgramText)) {
-    return {
-      strategy: 'llm',
-      reason: 'structured_formatting_cues',
-    }
-  }
-
   if (groqText === deepgramText) {
     return {
       strategy: 'exact_match',
       reason: 'exact_text_match',
       text: deepgramText,
+    }
+  }
+
+  if (hasStructuredFormattingIntent(groqText, deepgramText)) {
+    return {
+      strategy: 'llm',
+      reason: 'structured_formatting_cues',
     }
   }
 
@@ -216,14 +216,14 @@ export function buildGatedMergeResult(groqText: string, deepgramText: string, de
   const gatedText = decision.text || ''
 
   let distanceSource = groqText
-  let distanceTarget = gatedText
+  let distanceTarget = deepgramText
 
   if (decision.strategy === 'normalized_match') {
     distanceSource = normalizeCaseWhitespace(groqText)
-    distanceTarget = normalizeCaseWhitespace(gatedText)
+    distanceTarget = normalizeCaseWhitespace(deepgramText)
   } else if (decision.strategy === 'formatting_only') {
     distanceSource = normalizePunctuation(groqText)
-    distanceTarget = normalizePunctuation(gatedText)
+    distanceTarget = normalizePunctuation(deepgramText)
   }
 
   const distance = levenshteinDistance(distanceSource, distanceTarget)

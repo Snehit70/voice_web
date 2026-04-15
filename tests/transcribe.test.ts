@@ -130,6 +130,25 @@ describe('Transcriber', () => {
     expect(result.warnings).toContain('llm unavailable: fell back to provider transcript')
   })
 
+  it('updates diagnostics when merge-time llm fallback chooses a single provider', async () => {
+    const audioPath = await createAudioFixture()
+    const transcriber = new Transcriber(baseConfig, null, {
+      groq: createGroqStub(() => 'short text'),
+      deepgram: createDeepgramStub(() => 'this is the longer provider transcript'),
+      llm: createLLMStub(async () => {
+        throw new Error('merge unavailable')
+      }),
+    })
+
+    const result = await transcriber.transcribeWithFallback(audioPath)
+
+    expect(result.text).toBe('this is the longer provider transcript')
+    expect(result.model).toBe('deepgram:nova-3')
+    expect(result.mergeStrategy).toBe('single_provider')
+    expect(result.fallbackUsed).toBe(true)
+    expect(result.warnings).toContain('merge failed: merge unavailable')
+  })
+
   it('returns the surviving provider when one provider fails', async () => {
     const audioPath = await createAudioFixture()
     const transcriber = new Transcriber(baseConfig, null, {
@@ -151,6 +170,23 @@ describe('Transcriber', () => {
     expect(result.warnings).toContain('groq failed: groq exploded')
   })
 
+  it('does not mark single-provider happy paths as fallback', async () => {
+    const audioPath = await createAudioFixture()
+    const transcriber = new Transcriber(baseConfig, null, {
+      groq: createGroqStub(() => 'groq transcript'),
+      deepgram: createDeepgramStub(() => 'unused', false),
+      llm: createLLMStub(async () => {
+        throw new Error('should not be called')
+      }, false),
+    })
+
+    const result = await transcriber.transcribeWithFallback(audioPath)
+
+    expect(result.text).toBe('groq transcript')
+    expect(result.model).toBe('groq:whisper-large-v3')
+    expect(result.fallbackUsed).toBe(false)
+  })
+
   it('raises the non-english guardrail even if another provider succeeds', async () => {
     const audioPath = await createAudioFixture()
     const transcriber = new Transcriber(baseConfig, null, {
@@ -164,5 +200,48 @@ describe('Transcriber', () => {
     })
 
     await expect(transcriber.transcribeWithFallback(audioPath)).rejects.toBeInstanceOf(NonEnglishError)
+  })
+
+  it('preserves the non-english guardrail when every provider fails', async () => {
+    const audioPath = await createAudioFixture()
+    const transcriber = new Transcriber(baseConfig, null, {
+      groq: createGroqStub(() => {
+        throw new NonEnglishError('Spanish')
+      }),
+      deepgram: createDeepgramStub(() => {
+        throw new Error('deepgram exploded')
+      }),
+      llm: createLLMStub(async () => {
+        throw new Error('should not be called')
+      }, false),
+    })
+
+    await expect(transcriber.transcribeWithFallback(audioPath)).rejects.toBeInstanceOf(NonEnglishError)
+  })
+
+  it('forwards custom keywords to both providers', async () => {
+    const audioPath = await createAudioFixture()
+    const keywords = ['Voice Web', 'Hyprvox']
+    const groqCalls: string[][] = []
+    const deepgramCalls: string[][] = []
+
+    const transcriber = new Transcriber(baseConfig, null, {
+      groq: createGroqStub((_audioPath, customKeywords = []) => {
+        groqCalls.push(customKeywords)
+        return 'groq transcript'
+      }),
+      deepgram: createDeepgramStub((_audioPath, customKeywords = []) => {
+        deepgramCalls.push(customKeywords)
+        return 'deepgram transcript'
+      }),
+      llm: createLLMStub(async () => {
+        throw new Error('should not be called')
+      }, false),
+    })
+
+    await transcriber.transcribeWithFallback(audioPath, keywords)
+
+    expect(groqCalls).toEqual([keywords])
+    expect(deepgramCalls).toEqual([keywords])
   })
 })

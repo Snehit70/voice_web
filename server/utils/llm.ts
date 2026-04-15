@@ -198,7 +198,7 @@ export class LLMService {
     ]
 
     const result = await this.callLLM(messages, 0.0)
-    const finalText = result || textB || textA
+    const finalText = result || textA || textB
 
     if (!result) {
       return {

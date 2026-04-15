@@ -76,11 +76,13 @@ watch(transcript, (nextTranscript, previousTranscript) => {
 <template>
   <!-- Settings Button (Top Right) -->
   <button 
+    type="button"
     @click="toggleSettings" 
     class="fixed top-4 right-4 sm:top-8 sm:right-8 z-40 text-zinc-600 hover:text-zinc-300 transition-colors focus:outline-none p-2 rounded-full hover:bg-zinc-900" 
     title="Custom Vocabulary"
+    aria-label="Open custom vocabulary"
   >
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
       <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281Z" />
       <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
     </svg>
@@ -111,8 +113,8 @@ watch(transcript, (nextTranscript, previousTranscript) => {
       <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4 shadow-2xl">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-bold text-white">Custom Vocabulary</h3>
-          <button @click="showSettings = false" class="text-zinc-500 hover:text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+          <button type="button" @click="showSettings = false" class="text-zinc-500 hover:text-white" aria-label="Close custom vocabulary">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
@@ -131,7 +133,7 @@ watch(transcript, (nextTranscript, previousTranscript) => {
           </p>
         </div>
 
-        <button @click="showSettings = false" class="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-zinc-200 transition-colors">
+        <button type="button" @click="showSettings = false" class="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-zinc-200 transition-colors">
           Done
         </button>
       </div>
@@ -145,12 +147,14 @@ watch(transcript, (nextTranscript, previousTranscript) => {
       </div>
 
       <button 
+        type="button"
         @click="toggleRecording"
         class="relative z-10 flex items-center justify-center w-20 h-20 transition-all duration-300 rounded-full hover:scale-105 focus:outline-none focus:ring-4 focus:ring-zinc-800"
         :class="isRecording ? 'bg-red-600 shadow-[0_0_40px_rgba(220,38,38,0.5)]' : 'bg-zinc-100 hover:bg-white text-black'"
+        :aria-label="isRecording ? 'Stop recording' : 'Start recording'"
       >
         <span v-if="isRecording" class="w-8 h-8 bg-white rounded shadow-sm"></span>
-        <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8 text-black">
+        <svg v-else aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8 text-black">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
         </svg>
         
@@ -168,12 +172,15 @@ watch(transcript, (nextTranscript, previousTranscript) => {
         <div v-if="transcript" class="absolute top-4 right-4 flex gap-2">
           <button
             v-if="diagnostics"
+            type="button"
             @click="showDiagnostics = !showDiagnostics"
             class="p-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 transition-colors text-zinc-400"
             :class="showDiagnostics ? 'text-white border-zinc-500' : 'text-zinc-400'"
+            :aria-pressed="showDiagnostics"
+            :aria-label="showDiagnostics ? 'Hide diagnostics' : 'Show diagnostics'"
             title="Toggle diagnostics"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.09.668v4.852a.75.75 0 0 1-1.18.61l-1.386-.924a.75.75 0 0 1-.335-.624V12a.75.75 0 0 1 .75-.75h1.02Z" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25h.008v.008H12V8.25Z" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -181,14 +188,17 @@ watch(transcript, (nextTranscript, previousTranscript) => {
           </button>
 
           <button
+            type="button"
             @click="copyToClipboard"
             class="p-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 transition-colors"
             :class="copied ? 'text-green-400' : 'text-zinc-400'"
+            :aria-label="copied ? 'Transcript copied' : 'Copy transcript'"
+            title="Copy transcript"
           >
-            <svg v-if="!copied" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <svg v-if="!copied" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
             </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <svg v-else aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
             </svg>
           </button>

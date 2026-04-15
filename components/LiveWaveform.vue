@@ -58,9 +58,10 @@ const draw = () => {
     } else {
       const time = Date.now() / 1000
       const pulse = (Math.sin(time * 10 + i * 0.4) + 1) * 0.5
-      const simulatedVolume = typeof props.volume === 'number'
-        ? Math.max(0, Math.min(1, props.volume))
-        : 0
+      let simulatedVolume = 0
+      if (typeof props.volume === 'number' && Number.isFinite(props.volume)) {
+        simulatedVolume = Math.max(0, Math.min(1, props.volume))
+      }
       barHeight = 4 + simulatedVolume * 24 * pulse
     }
 

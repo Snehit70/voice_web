@@ -139,6 +139,9 @@ export function useRecorder() {
   }
 
   const processAudio = async (blob: Blob, keywords: string[] = [], fileName?: string) => {
+    error.value = null
+    errorType.value = null
+    diagnostics.value = null
     isProcessing.value = true
     processingStage.value = 'uploading'
     try {

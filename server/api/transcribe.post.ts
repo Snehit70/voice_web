@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { writeFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -29,6 +30,13 @@ function initTranscriber() {
     transcriber = new Transcriber(config, llm)
   }
   return transcriber
+}
+
+function buildSafePreview(text: string, previewLength: number = 32): string {
+  if (!text) return ''
+
+  const preview = text.slice(0, previewLength).replace(/\s+/g, ' ').trim()
+  return text.length > previewLength ? `${preview}… [redacted]` : `${preview} [redacted]`
 }
 
 export default defineEventHandler(async (event) => {
@@ -64,10 +72,13 @@ export default defineEventHandler(async (event) => {
   if (keywordsData && keywordsData.data) {
     try {
       const keywordsString = keywordsData.data.toString()
-      keywords = JSON.parse(keywordsString)
-      if (!Array.isArray(keywords)) {
-        keywords = []
-      }
+      const parsed = JSON.parse(keywordsString)
+      keywords = Array.isArray(parsed)
+        ? parsed
+            .filter((value: unknown): value is string => typeof value === 'string')
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0)
+        : []
     } catch {
       keywords = []
     }
@@ -76,7 +87,7 @@ export default defineEventHandler(async (event) => {
   const contentType = fileData.type || ''
   const suffix = getAudioSuffix(contentType, fileData.filename)
 
-  const tempPath = join(tmpdir(), `voice_web_${Date.now()}${suffix}`)
+  const tempPath = join(tmpdir(), `voice_web_${randomUUID()}${suffix}`)
 
   try {
     await writeFile(tempPath, fileData.data)
@@ -102,8 +113,8 @@ export default defineEventHandler(async (event) => {
       fallbackUsed: result.fallbackUsed,
       durationMs: elapsedMs,
       textLength: processedText.length,
-      originalText: result.text,
-      finalText: processedText,
+      originalPreview: buildSafePreview(result.text),
+      finalPreview: buildSafePreview(processedText),
       llmImproved,
     })
 

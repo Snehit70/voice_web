@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { decideMerge, hasStructuredFormattingIntent } from '../server/utils/merge'
+import {
+  buildGatedMergeResult,
+  decideMerge,
+  hasStructuredFormattingIntent,
+} from '../server/utils/merge'
 
 describe('decideMerge', () => {
   it('returns exact_match for identical text', () => {
@@ -25,6 +29,12 @@ describe('decideMerge', () => {
     const result = decideMerge('update config path', 'update konfig path')
     expect(result.strategy).toBe('minor_diff')
     expect(result.text).toBe('update config path')
+  })
+
+  it('prefers exact matches before structured-formatting heuristics', () => {
+    const result = decideMerge('open curly bracket foo colon bar', 'open curly bracket foo colon bar')
+    expect(result.strategy).toBe('exact_match')
+    expect(result.reason).toBe('exact_text_match')
   })
 
   it('routes meaningful disagreement to the llm', () => {
@@ -64,5 +74,16 @@ describe('hasStructuredFormattingIntent', () => {
     expect(
       hasStructuredFormattingIntent('we should update the config path later')
     ).toBe(false)
+  })
+})
+
+describe('buildGatedMergeResult', () => {
+  it('preserves provider disagreement metrics for minor diffs', () => {
+    const decision = decideMerge('update config path', 'update konfig path')
+    const result = buildGatedMergeResult('update config path', 'update konfig path', decision)
+
+    expect(result.strategy).toBe('minor_diff')
+    expect(result.accuracy.editDistance).toBeGreaterThan(0)
+    expect(result.accuracy.confidence).toBeLessThan(1)
   })
 })

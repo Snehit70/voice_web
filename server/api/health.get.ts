@@ -24,6 +24,7 @@ export default defineEventHandler(() => {
       deepgram_available: false,
       llm_available: false,
       active_model: 'none',
+      merge_model: 'disabled',
     }
   }
 

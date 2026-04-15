@@ -105,6 +105,8 @@ export class DeepgramTranscriber {
         mimeType = 'audio/webm'
       } else if (audioPath.endsWith('.ogg')) {
         mimeType = 'audio/ogg'
+      } else if (audioPath.endsWith('.m4a') || audioPath.endsWith('.mp4')) {
+        mimeType = 'audio/mp4'
       }
 
       const data = await ofetch<{

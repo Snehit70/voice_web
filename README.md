@@ -129,10 +129,10 @@ sequenceDiagram
     participant PP as Post-processor
 
     Browser->>API: POST audio file + keywords
-    API->>Transcriber: transcribeWithFallback()
+    API->>Transcriber: transcribeWithFallback(keywords)
     
     par Parallel STT
-        Transcriber->>Groq: transcribe()
+        Transcriber->>Groq: transcribe(keywords)
         Transcriber->>Deepgram: transcribe(keywords)
     end
 
@@ -140,8 +140,12 @@ sequenceDiagram
     Deepgram-->>Transcriber: text (formatting quality)
 
     alt Both engines succeed
-        Transcriber->>LLM: mergeTranscripts()
-        LLM-->>Transcriber: merged text
+        alt Resolve locally (exact / formatting-only / minor diff)
+            Transcriber->>Transcriber: deterministic merge gate
+        else Needs semantic conflict resolution
+            Transcriber->>LLM: mergeTranscripts()
+            LLM-->>Transcriber: merged text
+        end
     else One engine fails
         Transcriber->>Transcriber: use longest result
     end

@@ -147,11 +147,6 @@ export class Transcriber {
       }
     }
 
-    if (successful.length === 0) {
-      consola.error('all_providers_failed', logCtx)
-      throw new TranscriptionError(`All providers failed: ${JSON.stringify(logCtx)}`)
-    }
-
     const groqError = results.find(
       (r) => r.provider === 'groq' && r.error && r.error.includes('Please speak English')
     )?.error
@@ -164,6 +159,11 @@ export class Transcriber {
       const languageMatch = groqError.match(/Detected (\w+)/)
       const language = languageMatch ? languageMatch[1] : 'non-English'
       throw new NonEnglishError(language)
+    }
+
+    if (successful.length === 0) {
+      consola.error('all_providers_failed', logCtx)
+      throw new TranscriptionError(`All providers failed: ${JSON.stringify(logCtx)}`)
     }
 
     const groqRes = successful.find((r) => r.provider === 'groq')
@@ -195,6 +195,9 @@ export class Transcriber {
         consola.error('merge_failed', { error: error.message })
         const winner = successful.reduce((a, b) => (a.text.length > b.text.length ? a : b))
         finalText = winner.text
+        modelUsed = winner.provider === 'groq'
+          ? `groq:${this.config.groq.model}`
+          : `deepgram:${this.config.deepgram.model}`
         mergeStrategy = 'single_provider'
         mergeReason = 'provider_fallback'
         fallbackUsed = true
@@ -233,7 +236,7 @@ export class Transcriber {
         const winner = successful.reduce((a, b) => (a.text.length > b.text.length ? a : b))
         finalText = winner.text
         logCtx['winner'] = winner.provider
-        fallbackUsed = successful.length === 1
+        fallbackUsed = results.length > 1 && successful.length === 1
         mergeStrategy = 'single_provider'
         mergeReason = 'provider_fallback'
 
